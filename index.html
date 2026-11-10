@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Phân luồng chuyên khoa</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Lexend:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: quầy tiếp đón — cột trái là 3 bước hỏi theo thứ tự, cột phải là phiếu kết quả dính; mobile: kết quả xếp dưới + thanh tóm tắt cố định đáy */
+:root{
+  --bg:#f2f5f6; --paper:#ffffff; --ink:#15222a; --muted:#5a6972; --line:#d6dee3;
+  --accent:#1f5f8b; --accent-soft:#e2edf6;
+  --noi:#1f5f8b; --noi-soft:#e2edf6; --ngoai:#7a4b9c; --ngoai-soft:#efe6f6;
+  --tam:#2f7d62; --tam-soft:#e1f1e9; --lk:#a2591c; --lk-soft:#f8eadd;
+  --alarm:#c0392b; --alarm-soft:#fdecea; --on-alarm:#ffffff;
+  --f-display:"Lexend",system-ui,sans-serif; --f-body:"Be Vietnam Pro",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f161b; --paper:#172129; --ink:#e6edf1; --muted:#93a3ad; --line:#2a3842;
+  --accent:#6fb0de; --accent-soft:#1b3346;
+  --noi:#6fb0de; --noi-soft:#1b3346; --ngoai:#c39be0; --ngoai-soft:#2e2338;
+  --tam:#6fcfa8; --tam-soft:#173328; --lk:#f0a46a; --lk-soft:#3a2716;
+  --alarm:#ff7b6b; --alarm-soft:#3a1c19; --on-alarm:#1a0c0a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161b; --paper:#172129; --ink:#e6edf1; --muted:#93a3ad; --line:#2a3842;
+  --accent:#6fb0de; --accent-soft:#1b3346;
+  --noi:#6fb0de; --noi-soft:#1b3346; --ngoai:#c39be0; --ngoai-soft:#2e2338;
+  --tam:#6fcfa8; --tam-soft:#173328; --lk:#f0a46a; --lk-soft:#3a2716;
+  --alarm:#ff7b6b; --alarm-soft:#3a1c19; --on-alarm:#1a0c0a; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 100px}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-display);font-size:clamp(22px,4vw,30px);margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:4px 0 0;max-width:64ch}
+button{font:inherit;font-weight:600;padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+.primary{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:18px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+.step{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.step-h{display:flex;gap:12px;align-items:flex-start}
+.num{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;background:var(--accent-soft);color:var(--accent)}
+.step-h h2{font-family:var(--f-display);font-size:17px;margin:0;line-height:1.3}
+.step-h p{margin:2px 0 0;color:var(--muted);font-size:13.5px}
+.step.flags{border:1.5px solid var(--alarm);background:var(--alarm-soft)}
+.step.flags .num{background:var(--alarm);color:var(--on-alarm)}
+
+.patient{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+@media (max-width:560px){.patient{grid-template-columns:1fr 1fr}.patient .full{grid-column:1/-1}}
+.patient label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
+input[type=text],input[type=search],select{font:inherit;font-size:15px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);width:100%;min-width:0}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:999px;border:1.5px solid var(--line);background:var(--paper);cursor:pointer;font-size:14.5px;user-select:none;line-height:1.3}
+.chip input{position:absolute;opacity:0;pointer-events:none}
+.chip .box{flex:none;width:16px;height:16px;border-radius:4px;border:1.5px solid var(--muted);display:grid;place-items:center}
+.chip:hover{border-color:var(--accent)}
+.chip.on{border-color:var(--accent);background:var(--accent-soft)}
+.chip.on .box{background:var(--accent);border-color:var(--accent)}
+.chip.on .box::after{content:"";width:8px;height:4px;border:2px solid var(--paper);border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
+.chip.red{border-color:var(--alarm)}
+.chip.red.on{background:var(--alarm);color:var(--on-alarm)}
+.chip.red.on .box{background:var(--on-alarm);border-color:var(--on-alarm)}
+.chip.red.on .box::after{border-color:var(--alarm)}
+.chip:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+
+.searchrow{display:flex;flex-direction:column;gap:8px}
+.hits{display:flex;flex-wrap:wrap;gap:6px}
+.hit{font-weight:500;font-size:13.5px;padding:6px 10px;border-radius:8px;background:var(--accent-soft);border-color:transparent}
+.hit b{font-weight:700}
+.hint-empty{font-size:13px;color:var(--muted)}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.tile{position:relative;text-align:left;display:flex;flex-direction:column;gap:2px;padding:12px 12px 11px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);font-weight:400}
+.tile .tn{font-family:var(--f-display);font-weight:600;font-size:15.5px;line-height:1.25}
+.tile .te{font-size:12.5px;color:var(--muted);line-height:1.35}
+.tile.on{border-color:var(--accent);background:var(--accent-soft)}
+.tile .ord{position:absolute;top:8px;right:8px;font-family:var(--f-mono);font-size:11px;font-weight:500;background:var(--accent);color:var(--paper);border-radius:999px;padding:1px 7px}
+.tile.dim{display:none}
+
+.refine{display:flex;flex-direction:column;gap:12px}
+.rcard{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.rcard h3{margin:0;font-family:var(--f-display);font-size:15px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.rcard h3 small{font-family:var(--f-body);font-weight:500;color:var(--muted);font-size:12px}
+.rcard h3 button{padding:3px 9px;font-size:12px;font-weight:600}
+.none{color:var(--muted);font-size:13.5px}
+
+/* result */
+.res{position:sticky;top:12px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px}
+@media (max-width:900px){.res{position:static}}
+.res .h{font-family:var(--f-display);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sample{font-size:11.5px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--lk);background:var(--lk-soft);padding:2px 8px;border-radius:999px}
+.emerg{background:var(--alarm);color:var(--on-alarm);border-radius:10px;padding:12px 14px}
+.emerg b{font-family:var(--f-display);font-size:19px;display:block}
+.emerg ul{margin:6px 0 0;padding-left:18px;font-size:13.5px}
+.emerg p{margin:6px 0 0;font-size:13px}
+.top{border-radius:10px;padding:14px;background:var(--noi-soft)}
+.top.ngoai{background:var(--ngoai-soft)} .top.tam{background:var(--tam-soft)} .top.lk{background:var(--lk-soft)}
+.top .lbl{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.top .name{font-family:var(--f-display);font-size:26px;font-weight:700;line-height:1.15;margin:4px 0 8px}
+.top .why{font-size:13.5px}
+.top .why span{color:var(--muted)}
+.alt{font-size:13.5px;border-left:3px solid var(--line);padding:2px 0 2px 10px}
+.alt b{font-weight:600}
+.waiting{color:var(--muted);font-size:14px;padding:4px 0}
+.waiting ol{margin:6px 0 0;padding-left:20px}
+.rank{display:flex;flex-direction:column;gap:7px}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) 30px;gap:3px 8px;align-items:center;font-size:13.5px}
+.bar .t{display:flex;gap:6px;align-items:center;min-width:0}
+.tag{font-size:10px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:4px;flex:none}
+.tag.noi{background:var(--noi-soft);color:var(--noi)} .tag.ngoai{background:var(--ngoai-soft);color:var(--ngoai)}
+.tag.tam{background:var(--tam-soft);color:var(--tam)} .tag.lk{background:var(--lk-soft);color:var(--lk)}
+.bar .v{font-family:var(--f-mono);font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.track{grid-column:1/-1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.fill{height:100%;border-radius:3px;background:var(--noi);transition:width .25s}
+.fill.ngoai{background:var(--ngoai)} .fill.tam{background:var(--tam)} .fill.lk{background:var(--lk)}
+details summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:600}
+details .rank{margin-top:8px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions button{flex:1}
+.note{font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:10px;margin:0}
+
+.mbar{display:none}
+@media (max-width:900px){
+  .mbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:5;gap:10px;align-items:center;justify-content:space-between;
+    background:var(--paper);border-top:1px solid var(--line);
+    padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+  .mbar .m{min-width:0;font-size:12px;color:var(--muted)}
+  .mbar .m b{display:block;color:var(--ink);font-family:var(--f-display);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mbar.alarm{background:var(--alarm)} .mbar.alarm .m,.mbar.alarm .m b{color:var(--on-alarm)}
+  .mbar a{flex:none;font-weight:600;color:var(--accent);text-decoration:none;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Phân luồng chuyên khoa</h1>
+      <p class="sub">Dành cho nhân viên tiếp đón. Hỏi người bệnh theo 3 bước dưới đây, bấm vào ô đúng với lời họ kể. Phiếu bên phải tự gợi ý phòng khám.</p>
+    </div>
+    <button id="reset" type="button" class="primary">Người bệnh mới</button>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="step">
+        <div class="patient">
+          <label class="full">Họ tên<input type="text" id="p-name" autocomplete="off" placeholder="Nguyễn Văn A"></label>
+          <label>Năm sinh<input type="text" id="p-year" inputmode="numeric" maxlength="4" placeholder="1975"></label>
+          <label>Giới<select id="p-sex"><option value="">—</option><option>Nam</option><option>Nữ</option></select></label>
+        </div>
+      </section>
+
+      <section class="step flags" id="s1">
+        <div class="step-h"><div class="num">1</div><div>
+          <h2>Có dấu hiệu nguy hiểm nào không?</h2>
+          <p>Hỏi trước tiên. Nếu có bất kỳ ô nào: đưa người bệnh sang Cấp cứu, không xếp hàng. Không có thì bỏ qua bước này.</p>
+        </div></div>
+        <div class="chips" id="flags"></div>
+      </section>
+
+      <section class="step" id="s2">
+        <div class="step-h"><div class="num">2</div><div>
+          <h2>Người bệnh đến khám vì gì?</h2>
+          <p>Gõ đúng lời người bệnh nói (gõ không dấu cũng được), hoặc bấm ô phù hợp. Có thể chọn nhiều ô, ô bấm đầu tiên là lý do chính.</p>
+        </div></div>
+        <div class="searchrow">
+          <input type="search" id="q" placeholder="Ví dụ: đau bao tử, nhức răng, mắt đỏ, ngứa…" aria-label="Tìm theo lời người bệnh" autocomplete="off">
+          <div class="hits" id="hits" hidden></div>
+        </div>
+        <div class="tiles" id="tiles"></div>
+      </section>
+
+      <section class="step" id="s3">
+        <div class="step-h"><div class="num">3</div><div>
+          <h2>Hỏi thêm cho chắc (không bắt buộc)</h2>
+          <p>Mỗi câu bấm thêm giúp chọn đúng khoa hơn. Ô màu đỏ là dấu hiệu cần Cấp cứu.</p>
+        </div></div>
+        <div class="refine" id="refine"></div>
+      </section>
+    </div>
+    <aside class="res" id="result" aria-live="polite"></aside>
+  </div>
+</div>
+<div class="mbar" id="mbar"><div class="m">Phòng khám gợi ý<b id="mtop">—</b></div><a href="#result">Xem phiếu</a></div>
+
+<script>
+const SPEC = {
+  noitiet:{n:"Nội tiết",g:"noi"}, cxk:{n:"Nội cơ xương khớp",g:"noi"}, thankinh:{n:"Nội thần kinh",g:"noi"},
+  timmach:{n:"Nội tim mạch",g:"noi"}, hohap:{n:"Nội hô hấp",g:"noi"}, tieuhoa:{n:"Nội tiêu hoá",g:"noi"},
+  than:{n:"Nội thận",g:"noi"}, tamthan:{n:"Tâm thần",g:"tam"},
+  ngoaitq:{n:"Ngoại tổng quát",g:"ngoai"}, ngoailn:{n:"Ngoại lồng ngực – mạch máu",g:"ngoai"},
+  chanthuong:{n:"Ngoại chấn thương",g:"ngoai"}, ngoaitk:{n:"Ngoại thần kinh",g:"ngoai"},
+  tmh:{n:"Tai Mũi Họng",g:"lk"}, rhm:{n:"Răng Hàm Mặt",g:"lk"}, mat:{n:"Mắt",g:"lk"}, dalieu:{n:"Da liễu",g:"lk"}
+};
+const TAG = {noi:"NỘI",ngoai:"NGOẠI",tam:"TÂM THẦN",lk:"CK LẺ"};
+
+const FLAGS = [
+  "Ngất, lơ mơ, gọi không tỉnh",
+  "Đang co giật",
+  "Khó thở nặng, môi tím, nói không hết câu",
+  "Đau ngực dữ dội, vã mồ hôi",
+  "Đột ngột méo miệng, yếu/liệt một bên người, nói ngọng",
+  "Chảy máu nhiều không cầm được",
+  "Nôn ra máu, đi ngoài ra máu nhiều",
+  "Nổi mẩn kèm sưng môi, khó thở (dị ứng nặng)",
+  "Muốn tự làm hại bản thân hoặc người khác"
+];
+
+// Lý do khám → khoa mặc định (def) + câu hỏi thêm (o: [chữ, trọng số, cờ cấp cứu?, từ khoá])
+const C = [
+ {id:"nguc",n:"Đau ngực, hồi hộp",e:"tức ngực, tim đập nhanh, đánh trống ngực",d:{timmach:3},
+  k:"tuc nguc nhoi nguc tim dap nhanh danh trong nguc hoi hop dau tim",
+  o:[["Đau khi đi lại, leo cầu thang; nghỉ thì đỡ",{timmach:4}],
+     ["Tim đập nhanh, đập loạn, hụt nhịp",{timmach:4}],
+     ["Đau khi hít sâu hoặc khi ho",{hohap:4}],
+     ["Nóng rát sau ăn, ợ chua",{tieuhoa:5},0,"o chua trao nguoc"],
+     ["Bị va đập vào ngực",{ngoailn:6}],
+     ["Hồi hộp kèm lo lắng, sợ hãi vô cớ",{tamthan:4}],
+     ["Đau dữ dội trên 20 phút, lan ra tay trái hoặc hàm",{timmach:3},1]]},
+ {id:"huyetap",n:"Huyết áp, phù chân",e:"cao huyết áp, chân sưng, giãn tĩnh mạch",d:{timmach:3},
+  k:"huyet ap cao tang huyet ap phu chan sung chan gian tinh mach",
+  o:[["Huyết áp cao, đang uống thuốc huyết áp",{timmach:3}],
+     ["Phù chân, nằm thì khó thở phải kê cao gối",{timmach:4}],
+     ["Sưng mặt buổi sáng, nước tiểu nhiều bọt",{than:6}],
+     ["Tĩnh mạch chân nổi ngoằn ngoèo",{ngoailn:6},0,"suy gian tinh mach"],
+     ["Đi một đoạn đau bắp chân, phải dừng nghỉ",{ngoailn:6}],
+     ["Chân lạnh, tím, vết loét lâu lành",{ngoailn:5,noitiet:1}]]},
+ {id:"ho",n:"Ho, khó thở",e:"ho lâu, khò khè, hen suyễn",d:{hohap:4},
+  k:"ho dom khac dom kho tho kho khe hen suyen viem phoi lao",
+  o:[["Ho kéo dài trên 3 tuần",{hohap:3}],
+     ["Khò khè, hen suyễn",{hohap:3}],
+     ["Ho ra máu",{hohap:3,ngoailn:1}],
+     ["Ho kèm sổ mũi, đau họng",{tmh:6},0,"cam cum so mui"],
+     ["Nằm thì khó thở, kèm phù chân",{timmach:6}],
+     ["Ngáy to, ngưng thở khi ngủ",{hohap:2,tmh:3}]]},
+ {id:"tmh",n:"Tai, mũi, họng",e:"đau họng, nghẹt mũi, đau tai, nghe kém",d:{tmh:6},
+  k:"dau hong viem hong nuot dau nghet mui so mui viem xoang xoang dau tai u tai nghe kem chay mau cam chay mau mui khan tieng hoc xuong amidan",
+  o:[["Đau họng, nuốt đau",{tmh:2}],
+     ["Nghẹt mũi, chảy mũi kéo dài, viêm xoang",{tmh:2},0,"xoang"],
+     ["Đau tai, chảy nước tai, ù tai, nghe kém",{tmh:2}],
+     ["Khàn tiếng trên 2 tuần",{tmh:2}],
+     ["Chảy máu mũi",{tmh:2},0,"chay mau cam"],
+     ["Hóc xương cá, dị vật mắc họng",{tmh:3},0,"hoc xuong"],
+     ["Chóng mặt quay cuồng khi trở mình",{tmh:2,thankinh:3}],
+     ["Thở rít, sưng họng, khó thở",{tmh:2},1]]},
+ {id:"rhm",n:"Răng, miệng, hàm",e:"đau răng, sâu răng, sưng má, lở miệng",d:{rhm:6},
+  k:"rang nhuc rang dau rang sau rang e rang chay mau chan rang nuou loi sung ma sung ham nhiet mieng lo mieng rang khon nho rang",
+  o:[["Đau răng, sâu răng, ê buốt",{rhm:2},0,"nhuc rang"],
+     ["Chảy máu chân răng",{rhm:2},0,"nuou loi"],
+     ["Sưng má, sưng hàm, mọc răng khôn",{rhm:2}],
+     ["Vết loét trong miệng trên 2 tuần",{rhm:2}],
+     ["Đau khớp hàm, há miệng khó",{rhm:2}],
+     ["Va đập vùng mặt, gãy răng",{rhm:3,chanthuong:1}],
+     ["Sưng lan xuống cổ, khó nuốt, khó thở",{rhm:2},1]]},
+ {id:"mat",n:"Mắt",e:"đỏ mắt, mờ mắt, ngứa mắt, lẹo",d:{mat:6},
+  k:"mat do mat mo mat nhin mo ngua mat cop mat ghen leo chap dau mat kinh can",
+  o:[["Đỏ mắt, có ghèn",{mat:2},0,"dau mat do"],
+     ["Nhìn mờ dần",{mat:2}],
+     ["Ngứa, cộm, chảy nước mắt",{mat:2}],
+     ["Mụn lẹo, chắp ở mi mắt",{mat:2}],
+     ["Nhìn một thành hai, sụp mí",{thankinh:5,mat:1}],
+     ["Hoá chất bắn vào mắt, mắt bị đâm/va đập",{mat:3},1],
+     ["Đột ngột mất thị lực một bên",{mat:3},1]]},
+ {id:"da",n:"Da, tóc, móng",e:"ngứa, nổi mẩn, mụn, nấm, rụng tóc",d:{dalieu:6},
+  k:"da ngua noi man me day mun trung ca nam nam da hac lao zona giời leo rung toc nam mong not ruoi",
+  o:[["Ngứa, nổi mẩn, mề đay",{dalieu:2},0,"me day"],
+     ["Mụn trứng cá",{dalieu:2}],
+     ["Nấm da, nấm móng, lang ben",{dalieu:2}],
+     ["Rụng tóc nhiều",{dalieu:2}],
+     ["Nốt ruồi to ra, đổi màu, chảy máu",{dalieu:3}],
+     ["Mụn nước thành chùm, đau rát (giời leo)",{dalieu:3},0,"zona gioi leo"],
+     ["Nổi mụn hoặc vết loét ở vùng kín",{dalieu:3}],
+     ["Mụn nhọt sưng to, mưng mủ",{ngoaitq:6},0,"ap xe nhot"],
+     ["Vết loét bàn chân ở người tiểu đường",{noitiet:5,ngoailn:3}]]},
+ {id:"bung",n:"Đau bụng, tiêu hoá",e:"đau bao tử, tiêu chảy, táo bón, vàng da",d:{tieuhoa:4},
+  k:"dau bung dau bao tu dau da day o chua o hoi day bung tieu chay tao bon di ngoai vang da gan non buon non tri",
+  o:[["Đau vùng trên rốn, ợ chua, đầy bụng",{tieuhoa:3},0,"bao tu da day"],
+     ["Tiêu chảy hoặc táo bón kéo dài",{tieuhoa:3}],
+     ["Vàng da, vàng mắt",{tieuhoa:4}],
+     ["Đi ngoài phân đen",{tieuhoa:4}],
+     ["Đau bụng dưới bên phải",{ngoaitq:7},0,"ruot thua"],
+     ["Bụng chướng, không đánh hơi, không đi ngoài được",{ngoaitq:7}],
+     ["Có khối phồng ở bẹn hoặc rốn",{ngoaitq:7},0,"thoat vi"],
+     ["Trĩ, đau rát, chảy máu hậu môn",{ngoaitq:6}],
+     ["Đau bụng dữ dội, bụng cứng",{ngoaitq:3},1]]},
+ {id:"tieu",n:"Tiểu tiện, thận",e:"tiểu buốt, tiểu máu, bệnh thận",d:{than:4},
+  k:"tieu buot tieu rat tieu mau tieu nhieu tieu it nuoc tieu bot than suy than soi than chay than",
+  o:[["Tiểu buốt, tiểu rát",{than:3}],
+     ["Tiểu ra máu",{than:3,ngoaitq:1}],
+     ["Nước tiểu nhiều bọt, sưng mặt",{than:3}],
+     ["Đã bị bệnh thận, đang chạy thận",{than:5}],
+     ["Đau quặn hông lưng lan xuống bẹn, sỏi thận",{ngoaitq:7,than:1},0,"soi than"],
+     ["Tiểu rất ít hoặc không tiểu được",{than:3,ngoaitq:3}]]},
+ {id:"khop",n:"Xương khớp, lưng",e:"đau khớp, đau lưng, đau vai gáy, gout",d:{cxk:5},
+  k:"dau khop sung khop dau lung dau co vai gay thoai hoa gout gut thap khop dau goi",
+  o:[["Sưng, nóng, đau khớp",{cxk:2}],
+     ["Cứng khớp buổi sáng, lâu mới cử động được",{cxk:2}],
+     ["Ngón chân cái sưng đỏ, đau dữ dội (gout)",{cxk:3}],
+     ["Đau cổ, vai gáy",{cxk:2}],
+     ["Đau lưng lan xuống chân, tê chân",{ngoaitk:7,cxk:1},0,"thoat vi dia dem than kinh toa"],
+     ["Đau sau khi té ngã, va chạm",{chanthuong:7}]]},
+ {id:"chanthuong",n:"Té ngã, tai nạn, vết thương",e:"gãy tay chân, bong gân, đứt tay",d:{chanthuong:6},
+  k:"te nga tai nan gay xuong bong gan trat khop vet thuong dut tay rach da va dap",
+  o:[["Tay chân biến dạng, không cử động được",{chanthuong:3}],
+     ["Vết thương rách da, đứt tay",{chanthuong:3}],
+     ["Bong gân, trặc chân",{chanthuong:3}],
+     ["Va đập vùng đầu",{ngoaitk:8},0,"dap dau"],
+     ["Va đập vùng ngực",{ngoailn:8}],
+     ["Va đập vùng mặt, gãy răng",{rhm:8}],
+     ["Bất tỉnh sau tai nạn, nôn nhiều",{ngoaitk:3},1]]},
+ {id:"dau",n:"Đầu, chóng mặt, tê yếu",e:"nhức đầu, choáng, tê tay chân, run",d:{thankinh:5},
+  k:"dau dau nhuc dau chong mat choang vang te tay te chan run tay dong kinh mat tri nho lu lan",
+  o:[["Nhức đầu kéo dài hoặc hay tái lại",{thankinh:2}],
+     ["Chóng mặt, choáng váng",{thankinh:2}],
+     ["Tê bì tay chân",{thankinh:2,noitiet:1}],
+     ["Run tay khi nghỉ, cử động chậm",{thankinh:3}],
+     ["Đã từng bị động kinh, co giật",{thankinh:3}],
+     ["Hay quên, lú lẫn",{thankinh:2,tamthan:1}],
+     ["Nhức đầu kèm nôn vọt, nhìn mờ",{ngoaitk:7}],
+     ["Yếu tay chân tăng dần, đi lại khó",{ngoaitk:4,thankinh:2}]]},
+ {id:"noitiet",n:"Đường huyết, tuyến giáp, cân nặng",e:"tiểu đường, bướu cổ, sụt cân",d:{noitiet:6},
+  k:"tieu duong duong huyet dai thao duong buou co tuyen giap cuong giap suy giap sut can tang can beo phi",
+  o:[["Bị tiểu đường, đường huyết cao",{noitiet:2}],
+     ["Khát nhiều, tiểu nhiều, ăn nhiều",{noitiet:2}],
+     ["Bướu cổ, cổ to",{noitiet:3}],
+     ["Run tay, hồi hộp, sợ nóng, ra mồ hôi",{noitiet:2}],
+     ["Sợ lạnh, da khô, chậm chạp",{noitiet:2}],
+     ["Sụt cân nhanh không rõ lý do",{noitiet:1,tieuhoa:2}]]},
+ {id:"tamthan",n:"Tâm trạng, giấc ngủ",e:"buồn chán, lo âu, mất ngủ",d:{tamthan:6},
+  k:"buon chan tram cam lo au cang thang mat ngu kho ngu ao giac nghe tieng noi kich dong ruou nghien",
+  o:[["Buồn chán, mất hứng thú trên 2 tuần",{tamthan:2}],
+     ["Lo âu, căng thẳng quá mức",{tamthan:2}],
+     ["Mất ngủ kéo dài",{tamthan:2,thankinh:1}],
+     ["Nghe hoặc thấy điều người khác không thấy",{tamthan:3}],
+     ["Nói năng, hành vi khác thường, kích động",{tamthan:3}],
+     ["Nghiện rượu hoặc chất",{tamthan:3}]]},
+ {id:"khoi",n:"Có khối u, cục bướu",e:"cục ở vú, cổ, bẹn, dưới da",d:{ngoaitq:5},
+  k:"khoi u cuc buou noi cuc u vu cuc o co hach",
+  o:[["Cục ở vú",{ngoaitq:3}],
+     ["Cục dưới da",{ngoaitq:2}],
+     ["Cục ở cổ",{tmh:4,noitiet:3}],
+     ["Khối phồng ở bẹn hoặc rốn",{ngoaitq:3}],
+     ["Khối ở bụng đập theo nhịp tim",{ngoailn:8}]]}
+];
+
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"d").replace(/\s+/g," ").trim();
+const SAMPLE = {complaints:["rhm"], opts:["rhm-0","rhm-2"]};
+
+let picked = [];          // complaint ids theo thứ tự chọn
+let opts = new Set();     // "cid-index"
+let flags = new Set();
+let isSample = false;
+
+const $ = id => document.getElementById(id);
+
+// --- dựng giao diện ---
+$("flags").innerHTML = FLAGS.map((f,i)=>`<label class="chip red"><input type="checkbox" data-flag="${i}"><span class="box"></span><span>${f}</span></label>`).join("");
+$("tiles").innerHTML = C.map(c=>`<button type="button" class="tile" data-c="${c.id}" aria-pressed="false"><span class="tn">${c.n}</span><span class="te">${c.e}</span></button>`).join("");
+
+function renderRefine(){
+  if(!picked.length){ $("refine").innerHTML = `<p class="none">Chọn lý do khám ở bước 2, câu hỏi thêm sẽ hiện ở đây.</p>`; return; }
+  $("refine").innerHTML = picked.map((cid,pi)=>{
+    const c = C.find(x=>x.id===cid);
+    return `<div class="rcard"><h3><span>${c.n} <small>${pi===0?"· lý do chính":""}</small></span><button type="button" data-remove="${cid}">Bỏ</button></h3>
+      <div class="chips">${c.o.map((o,i)=>{const key=`${cid}-${i}`;return `<label class="chip ${o[2]?"red":""} ${opts.has(key)?"on":""}"><input type="checkbox" data-opt="${key}" ${opts.has(key)?"checked":""}><span class="box"></span><span>${o[0]}</span></label>`}).join("")}</div></div>`;
+  }).join("");
+}
+
+function syncTiles(){
+  document.querySelectorAll(".tile").forEach(t=>{
+    const i = picked.indexOf(t.dataset.c);
+    t.classList.toggle("on",i>=0); t.setAttribute("aria-pressed",i>=0);
+    t.querySelector(".ord")?.remove();
+    if(i>=0 && picked.length>1) t.insertAdjacentHTML("beforeend",`<span class="ord">${i+1}</span>`);
+  });
+  document.querySelectorAll("[data-flag]").forEach(inp=>{inp.checked=flags.has(+inp.dataset.flag);inp.closest(".chip").classList.toggle("on",inp.checked)});
+}
+
+function toggleComplaint(cid, force){
+  const i = picked.indexOf(cid);
+  if(i>=0 && force!==true){ picked.splice(i,1); [...opts].forEach(k=>{if(k.startsWith(cid+"-")) opts.delete(k)}); }
+  else if(i<0) picked.push(cid);
+}
+
+// --- tính điểm ---
+function compute(){
+  const score = Object.fromEntries(Object.keys(SPEC).map(k=>[k,0]));
+  const why = Object.fromEntries(Object.keys(SPEC).map(k=>[k,[]]));
+  const em = FLAGS.filter((_,i)=>flags.has(i));
+  picked.forEach((cid,pi)=>{
+    const c = C.find(x=>x.id===cid);
+    for(const k in c.d){ score[k]+=c.d[k] + (pi===0?1:0); why[k].push(c.n); }
+    c.o.forEach((o,i)=>{
+      if(!opts.has(`${cid}-${i}`)) return;
+      if(o[2]) em.push(o[0]);
+      for(const k in o[1]){ score[k]+=o[1][k]; if(o[1][k]>=3) why[k].push(o[0].toLowerCase()); }
+    });
+  });
+  const ranked = Object.keys(SPEC).filter(k=>score[k]>0).sort((a,b)=>score[b]-score[a]);
+  return {score,why,em,ranked};
+}
+
+let last;
+function render(){
+  syncTiles(); renderRefine();
+  const r = last = compute();
+  const {score,why,em,ranked} = r;
+  let h = `<p class="h">Phiếu phân luồng ${isSample?`<span class="sample">Ca mẫu — bấm “Người bệnh mới”</span>`:""}</p>`;
+  if(em.length) h += `<div class="emerg"><b>Đưa sang Cấp cứu ngay</b><ul>${em.map(f=>`<li>${f}</li>`).join("")}</ul><p>Báo điều dưỡng hoặc bác sĩ trực. Không để người bệnh tự chờ.</p></div>`;
+  if(!ranked.length){
+    h += `<div class="waiting">${em.length?"Xử trí cấp cứu trước.":"Chưa có thông tin. Làm theo thứ tự:"}<ol><li>Hỏi dấu hiệu nguy hiểm</li><li>Chọn lý do đến khám</li><li>Bấm thêm câu đúng với người bệnh</li></ol></div>`;
+  } else {
+    const top = ranked[0], s1 = score[top], sec = ranked[1], s2 = sec?score[sec]:0;
+    const g = SPEC[top].g;
+    const uniq = [...new Set(why[top])];
+    h += `<div class="top ${g}"><div class="lbl">${em.length?"Sau khi xử trí cấp cứu":"Mời người bệnh đến"}</div>
+      <div class="name">${SPEC[top].n}</div>
+      <div class="why"><span>Vì:</span> ${uniq.join("; ")}</div></div>`;
+    if(sec && s1-s2<=2) h += `<div class="alt">Khoa gần bằng: <b>${SPEC[sec].n}</b>. Nếu người bệnh còn phân vân, hỏi điều dưỡng phân loại.</div>`;
+    h += `<details><summary>Xem điểm các khoa</summary><div class="rank">` + ranked.map(k=>{const gg=SPEC[k].g;return `<div class="bar"><div class="t"><span class="tag ${gg}">${TAG[gg]}</span><span>${SPEC[k].n}</span></div><span class="v">${score[k]}</span><div class="track"><div class="fill ${gg}" style="width:${score[k]/s1*100}%"></div></div></div>`}).join("") + `</div></details>`;
+  }
+  h += `<div class="actions"><button type="button" id="copy">Sao chép phiếu</button></div>`;
+  h += `<p class="note">Công cụ hỗ trợ tiếp đón dựa trên lời kể của người bệnh, không thay thế chẩn đoán. Trường hợp không chắc chắn, hỏi điều dưỡng hoặc bác sĩ.</p>`;
+  $("result").innerHTML = h;
+  $("mbar").classList.toggle("alarm",em.length>0);
+  $("mtop").textContent = em.length ? "Đưa sang Cấp cứu ngay" : (ranked.length ? SPEC[ranked[0]].n : "Chưa chọn");
+}
+
+function summary(){
+  const {score,em,ranked} = last;
+  const name=$("p-name").value.trim(), y=$("p-year").value.trim(), sx=$("p-sex").value;
+  const lines = ["PHIẾU PHÂN LUỒNG"];
+  if(name||y||sx) lines.push(`Người bệnh: ${name||"—"}${y?", sinh "+y:""}${sx?", "+sx:""}`);
+  if(em.length) lines.push("⚠ CHUYỂN CẤP CỨU: "+em.join("; "));
+  lines.push("Phòng khám: "+(ranked[0]?SPEC[ranked[0]].n:"—"));
+  if(ranked[1]) lines.push("Khoa thay thế: "+SPEC[ranked[1]].n);
+  picked.forEach(cid=>{const c=C.find(x=>x.id===cid);const ch=c.o.filter((o,i)=>opts.has(`${cid}-${i}`)).map(o=>o[0]);lines.push(`- ${c.n}${ch.length?": "+ch.join("; "):""}`)});
+  const d=new Date(); lines.push(`Thời gian: ${d.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})} ${d.toLocaleDateString("vi-VN")}`);
+  return lines.join("\n");
+}
+
+// --- tìm kiếm theo lời người bệnh ---
+function search(q){
+  const nq = norm(q), hits = $("hits");
+  document.querySelectorAll(".tile").forEach(t=>t.classList.remove("dim"));
+  if(nq.length<2){ hits.hidden=true; hits.innerHTML=""; return; }
+  const words = nq.split(" ");
+  const res = [];
+  C.forEach(c=>{
+    const hay = norm(c.n+" "+c.e+" "+c.k);
+    const cm = words.every(w=>hay.includes(w));
+    c.o.forEach((o,i)=>{ if(words.every(w=>norm(o[0]+" "+(o[3]||"")).includes(w))) res.push({c,i,o}); });
+    if(cm && !res.some(x=>x.c===c)) res.push({c,i:-1});
+    document.querySelector(`.tile[data-c="${c.id}"]`).classList.toggle("dim", !cm && !res.some(x=>x.c===c));
+  });
+  hits.hidden=false;
+  hits.innerHTML = res.length ? res.slice(0,8).map(x=>`<button type="button" class="hit" data-hc="${x.c.id}" data-hi="${x.i}">${x.i<0?`<b>${x.c.n}</b>`:`${x.o[0]} <b>· ${x.c.n}</b>`}</button>`).join("")
+    : `<span class="hint-empty">Không tìm thấy. Thử từ khác, hoặc bấm chọn ô bên dưới.</span>`;
+}
+
+// --- sự kiện ---
+document.addEventListener("click",e=>{
+  const t = e.target.closest(".tile");
+  if(t){ isSample=false; toggleComplaint(t.dataset.c); render(); return; }
+  const rm = e.target.closest("[data-remove]");
+  if(rm){ isSample=false; toggleComplaint(rm.dataset.remove); render(); return; }
+  const hit = e.target.closest(".hit");
+  if(hit){ isSample=false; const cid=hit.dataset.hc, i=+hit.dataset.hi; toggleComplaint(cid,true); if(i>=0) opts.add(`${cid}-${i}`);
+    $("q").value=""; search(""); render(); document.querySelector(`.rcard [data-remove="${cid}"]`)?.closest(".rcard").scrollIntoView({block:"nearest"}); return; }
+});
+document.addEventListener("change",e=>{
+  const f = e.target.dataset.flag, o = e.target.dataset.opt;
+  if(f!==undefined){ isSample=false; e.target.checked?flags.add(+f):flags.delete(+f); render(); }
+  if(o!==undefined){ isSample=false; e.target.checked?opts.add(o):opts.delete(o); render(); }
+});
+$("q").addEventListener("input",e=>search(e.target.value));
+$("q").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); document.querySelector(".hit")?.click(); }});
+$("result").addEventListener("click",e=>{
+  if(e.target.id!=="copy") return;
+  const btn=e.target, txt=summary();
+  const ok=()=>{btn.textContent="Đã sao chép";setTimeout(()=>btn.textContent="Sao chép phiếu",1500)};
+  const fail=()=>{btn.textContent="Không sao chép được — bôi đen để copy";const pre=document.createElement("pre");pre.textContent=txt;pre.style.whiteSpace="pre-wrap";pre.style.fontSize="12px";btn.parentElement.after(pre);};
+  try{ navigator.clipboard.writeText(txt).then(ok,fail); }catch(_){ fail(); }
+});
+$("reset").addEventListener("click",()=>{
+  picked=[]; opts.clear(); flags.clear(); isSample=false;
+  ["p-name","p-year","q"].forEach(id=>$(id).value=""); $("p-sex").value=""; search("");
+  render(); $("p-name").focus(); window.scrollTo({top:0});
+});
+
+// ca mẫu khi mở trang
+picked=[...SAMPLE.complaints]; SAMPLE.opts.forEach(k=>opts.add(k)); isSample=true;
+render();
+</script>
+</body>
+</html>
